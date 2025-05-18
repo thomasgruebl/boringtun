@@ -5,7 +5,8 @@ use super::PacketData;
 use crate::noise::errors::WireGuardError;
 use parking_lot::Mutex;
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{convert::TryInto, fs, path::Path, sync::atomic::{AtomicUsize, Ordering}};
+use hex::FromHex;
 
 pub struct Session {
     pub(crate) receiving_index: u32,
@@ -159,11 +160,7 @@ impl Session {
         sending_key: [u8; 32],
     ) -> Session {
         /* -------------------------------------------  TEST  --------------------------------------------------------- */
-        let hardcoded_session_key: [u8; 32] = [
-            0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d,
-            0x8e, 0x8f, 0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b,
-            0x9c, 0x9d, 0x9e, 0x9f,
-        ];
+        let hardcoded_session_key: [u8; 32] = Self::read_session_key_hex(Path::new("/home/mock_session_key.txt")).unwrap();
 
         /* -------------------------------------------  TEST  --------------------------------------------------------- */
 
@@ -181,6 +178,15 @@ impl Session {
 
     pub(super) fn local_index(&self) -> usize {
         self.receiving_index as usize
+    }
+
+    /// mock function to test reading custom session keys
+    pub fn read_session_key_hex(path: &Path) -> Result<[u8; 32], Box<dyn std::error::Error>> {
+        let contents: String = fs::read_to_string(path)?;
+        let contents: &str = contents.trim();
+
+        let key_bytes: [u8; 32] = <[u8; 32]>::from_hex(contents)?;
+        Ok(key_bytes)
     }
 
     /// Returns true if receiving counter is good to use
